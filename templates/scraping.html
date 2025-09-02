@@ -145,8 +145,8 @@
                             <strong>{{ theatre_dict[log.theatre_id].name }}</strong>
                         </td>
                         <td>
-                            <div>{{ log.started_at.strftime('%Y-%m-%d') }}</div>
-                            <small class="text-muted">{{ log.started_at.strftime('%H:%M:%S') }}</small>
+                            <div>{{ log.started_at_est.strftime('%Y-%m-%d') }}</div>
+                            <small class="text-muted">{{ log.started_at_est.strftime('%H:%M:%S') }} EST</small>
                         </td>
                         <td>
                             {% if log.completed_at %}

@@ -70,7 +70,7 @@
                     <div class="col-6">
                         {% if theatre.last_scrape %}
                         <div class="small text-muted">
-                            {{ theatre.last_scrape.strftime('%m/%d %H:%M') }}
+                            {{ theatre.last_scrape_est.strftime('%m/%d %H:%M') }} EST
                         </div>
                         <small class="text-muted">Last Scrape</small>
                         {% else %}

@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta
+import pytz
 import json
 import os
 
@@ -15,6 +16,18 @@ from .scrapers.theatre_scraper import TheatreScraper
 from .tasks.scraping import scrape_single_theatre
 
 router = APIRouter()
+
+# Timezone utilities
+UTC = pytz.UTC
+EST = pytz.timezone('US/Eastern')
+
+def utc_to_est(utc_dt):
+    """Convert UTC datetime to EST"""
+    if utc_dt is None:
+        return None
+    if utc_dt.tzinfo is None:
+        utc_dt = UTC.localize(utc_dt)
+    return utc_dt.astimezone(EST)
 
 # Global variable to hold templates - will be set from main app
 templates = None
@@ -44,6 +57,11 @@ async def dashboard_home(request: Request, db: Session = Depends(get_db)):
         ScrapeLog.started_at.desc()
     ).limit(5).all()
 
+    # Convert UTC times to EST for display
+    for log in recent_logs:
+        if log.started_at:
+            log.started_at_est = utc_to_est(log.started_at)
+
     # System health
     failed_scrapes = db.query(ScrapeLog).filter(
         ScrapeLog.status == "error"
@@ -59,7 +77,7 @@ async def dashboard_home(request: Request, db: Session = Depends(get_db)):
             "failed_scrapes": failed_scrapes
         },
         "recent_logs": recent_logs,
-        "now": datetime.utcnow()
+        "now": utc_to_est(datetime.utcnow())
     })
 
 
@@ -81,6 +99,7 @@ async def theatres_list(request: Request, db: Session = Depends(get_db)):
         ).order_by(ScrapeLog.started_at.desc()).first()
 
         theatre.last_scrape = recent_log.started_at if recent_log else None
+        theatre.last_scrape_est = utc_to_est(recent_log.started_at) if recent_log else None
         theatre.last_status = recent_log.status if recent_log else "never"
 
     return templates.TemplateResponse("theatres.html", {
@@ -564,6 +583,13 @@ async def scheduled_scraping_management(
     theatres = db.query(Theatre).all()
     theatre_dict = {t.id: t for t in theatres}
 
+    # Convert UTC times to EST for display
+    for schedule in schedules:
+        if schedule.last_run:
+            schedule.last_run_est = utc_to_est(schedule.last_run)
+        if schedule.next_run:
+            schedule.next_run_est = utc_to_est(schedule.next_run)
+
     # Get current system status
     redis_available = False
     try:
@@ -588,7 +614,10 @@ async def scheduled_scraping_management(
 async def create_schedule(
     request: Request,
     theatre_id: str = Form(...),
-    schedule_type: str = Form("daily"),
+    schedule_preset: str = Form("daily-2am"),
+    custom_hour: int = Form(2),
+    custom_minute: int = Form(0),
+    day_of_week: int = Form(0),
     enabled: bool = Form(True),
     db: Session = Depends(get_db)
 ):
@@ -604,14 +633,37 @@ async def create_schedule(
             status_code=303
         )
 
-    # Create schedule configuration based on type
+    # Convert preset to schedule_type and config
+    schedule_type = "daily"
     schedule_config = {}
-    if schedule_type == "daily":
-        schedule_config = {"hour": 2, "minute": 0}  # 2 AM daily
-    elif schedule_type == "weekly":
-        schedule_config = {"day_of_week": 1, "hour": 2, "minute": 0}  # Monday 2 AM
-    elif schedule_type == "custom":
-        schedule_config = {"custom": True}
+
+    # Preset mappings
+    preset_map = {
+        'custom': {'type': 'daily', 'config': {'hour': custom_hour, 'minute': custom_minute}},
+        'daily-2am': {'type': 'daily', 'config': {'hour': 2, 'minute': 0}},
+        'daily-6am': {'type': 'daily', 'config': {'hour': 6, 'minute': 0}},
+        'daily-12pm': {'type': 'daily', 'config': {'hour': 12, 'minute': 0}},
+        'daily-6pm': {'type': 'daily', 'config': {'hour': 18, 'minute': 0}},
+        'daily-10pm': {'type': 'daily', 'config': {'hour': 22, 'minute': 0}},
+        'weekly-mon-2am': {'type': 'weekly', 'config': {'hour': 2, 'minute': 0, 'day_of_week': 0}},
+        'weekly-fri-6pm': {'type': 'weekly', 'config': {'hour': 18, 'minute': 0, 'day_of_week': 4}},
+        'hourly': {'type': 'hourly', 'config': {'minute': custom_minute}},
+        'every-4-hours': {'type': 'every-4-hours', 'config': {'hour': custom_hour, 'minute': custom_minute}},
+        'every-12-hours': {'type': 'every-12-hours', 'config': {'hour': custom_hour, 'minute': custom_minute}},
+    }
+
+    if schedule_preset in preset_map:
+        preset_config = preset_map[schedule_preset]
+        schedule_type = preset_config['type']
+        schedule_config = preset_config['config']
+    else:
+        # Fallback for unknown presets
+        schedule_type = "daily"
+        schedule_config = {'hour': custom_hour, 'minute': custom_minute}
+
+    # Handle weekly presets with custom day selection
+    if schedule_preset.startswith('weekly') and schedule_preset != 'weekly-mon-2am' and schedule_preset != 'weekly-fri-6pm':
+        schedule_config['day_of_week'] = day_of_week
 
     schedule = ScheduledScrape(
         theatre_id=theatre_id,
@@ -757,6 +809,13 @@ async def scraping_history(
     theatres = db.query(Theatre).all()
     theatre_dict = {t.id: t for t in theatres}
 
+    # Convert UTC times to EST for display
+    for log in logs:
+        if log.started_at:
+            log.started_at_est = utc_to_est(log.started_at)
+        if log.completed_at:
+            log.completed_at_est = utc_to_est(log.completed_at)
+
     # Status summary
     status_counts = {}
     for log in logs:
@@ -789,6 +848,11 @@ async def system_health(request: Request, db: Session = Depends(get_db)):
         ScrapeLog.started_at.desc()
     ).limit(10).all()
 
+    # Convert UTC times to EST for display
+    for log in recent_logs:
+        if log.started_at:
+            log.started_at_est = utc_to_est(log.started_at)
+
     # Show statistics
     total_shows = db.query(Show).count()
     shows_with_images = db.query(Show).filter(
@@ -800,9 +864,16 @@ async def system_health(request: Request, db: Session = Depends(get_db)):
     theatres = db.query(Theatre).all()
     for theatre in theatres:
         show_count = db.query(Show).filter(Show.theatre_id == theatre.id).count()
+
+        # Get last scrape time for theatre
+        recent_log = db.query(ScrapeLog).filter(
+            ScrapeLog.theatre_id == theatre.id
+        ).order_by(ScrapeLog.started_at.desc()).first()
+
         theatre_stats.append({
             "theatre": theatre,
-            "show_count": show_count
+            "show_count": show_count,
+            "last_scrape_est": utc_to_est(recent_log.started_at) if recent_log else None
         })
 
     return templates.TemplateResponse("health.html", {

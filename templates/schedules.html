@@ -1,12 +1,61 @@
 {% extends "base.html" %}
 
-{% block title %}Scheduled Scraping - CurtainTime{% endblock %}
+{% block title %}Schedules - CurtainTime{% endblock %}
 
 {% block content %}
+<style>
+.schedule-preset-selector {
+    transition: all 0.2s ease;
+}
+
+.schedule-preset-selector:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.time-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.time-input-group input {
+    width: 80px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.time-separator {
+    font-weight: bold;
+    color: #6c757d;
+}
+
+.schedule-badge {
+    font-size: 0.875em;
+    padding: 0.375rem 0.75rem;
+}
+
+.schedule-description {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.weekly-options {
+    border-left: 3px solid #0d6efd;
+    padding-left: 1rem;
+    margin-top: 1rem;
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+</style>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h2 mb-0">
         <i class="bi bi-clock-history text-primary me-2"></i>
-        Scheduled Scraping
+        Schedules
     </h1>
     <div class="btn-group" role="group">
         <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createScheduleModal">
@@ -100,18 +149,41 @@
                             <small class="text-muted">{{ schedule.theatre_id }}</small>
                         </td>
                         <td>
-                            <span class="badge bg-info">{{ schedule.schedule_type.title() }}</span>
-                            {% if schedule.schedule_config %}
-                                <br>
-                                <small class="text-muted">
-                                    {% if schedule.schedule_type == "daily" %}
-                                        Daily at {{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} UTC
-                                    {% elif schedule.schedule_type == "weekly" %}
-                                        Weekly ({{ schedule.schedule_config.day_of_week }}) at {{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} UTC
-                                    {% else %}
-                                        Custom schedule
-                                    {% endif %}
-                                </small>
+                            {% if schedule.schedule_type == "daily" %}
+                                {% if schedule.schedule_config.hour == 2 and schedule.schedule_config.minute == 0 %}
+                                    <span class="badge bg-info schedule-badge">Daily at 2:00 AM</span>
+                                {% elif schedule.schedule_config.hour == 6 and schedule.schedule_config.minute == 0 %}
+                                    <span class="badge bg-info schedule-badge">Daily at 6:00 AM</span>
+                                {% elif schedule.schedule_config.hour == 12 and schedule.schedule_config.minute == 0 %}
+                                    <span class="badge bg-info schedule-badge">Daily at 12:00 PM</span>
+                                {% elif schedule.schedule_config.hour == 18 and schedule.schedule_config.minute == 0 %}
+                                    <span class="badge bg-info schedule-badge">Daily at 6:00 PM</span>
+                                {% elif schedule.schedule_config.hour == 22 and schedule.schedule_config.minute == 0 %}
+                                    <span class="badge bg-info schedule-badge">Daily at 10:00 PM</span>
+                                {% else %}
+                                    <span class="badge bg-info schedule-badge">Daily Custom</span>
+                                    <div class="schedule-description">{{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
+                                {% endif %}
+                            {% elif schedule.schedule_type == "weekly" %}
+                                {% if schedule.schedule_config.hour == 2 and schedule.schedule_config.minute == 0 and schedule.schedule_config.day_of_week == 0 %}
+                                    <span class="badge bg-info schedule-badge">Weekly (Monday) at 2:00 AM</span>
+                                {% elif schedule.schedule_config.hour == 18 and schedule.schedule_config.minute == 0 and schedule.schedule_config.day_of_week == 4 %}
+                                    <span class="badge bg-info schedule-badge">Weekly (Friday) at 6:00 PM</span>
+                                {% else %}
+                                    <span class="badge bg-info schedule-badge">Weekly Custom</span>
+                                    <div class="schedule-description">{{ ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][schedule.schedule_config.day_of_week] }} {{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
+                                {% endif %}
+                            {% elif schedule.schedule_type == "hourly" %}
+                                <span class="badge bg-info schedule-badge">Every Hour</span>
+                                <div class="schedule-description">At minute {{ schedule.schedule_config.minute }}</div>
+                            {% elif schedule.schedule_type == "every-4-hours" %}
+                                <span class="badge bg-info schedule-badge">Every 4 Hours</span>
+                                <div class="schedule-description">At {{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
+                            {% elif schedule.schedule_type == "every-12-hours" %}
+                                <span class="badge bg-info schedule-badge">Every 12 Hours</span>
+                                <div class="schedule-description">At {{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
+                            {% else %}
+                                <span class="badge bg-secondary schedule-badge">{{ schedule.schedule_type.title() }}</span>
                             {% endif %}
                         </td>
                         <td>
@@ -128,15 +200,15 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if schedule.last_run %}
-                                {{ schedule.last_run.strftime('%Y-%m-%d %H:%M') }}
+                            {% if schedule.last_run_est %}
+                                {{ schedule.last_run_est.strftime('%Y-%m-%d %H:%M') }} EST
                             {% else %}
                                 <span class="text-muted">Never</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if schedule.next_run %}
-                                {{ schedule.next_run.strftime('%Y-%m-%d %H:%M') }}
+                            {% if schedule.next_run_est %}
+                                {{ schedule.next_run_est.strftime('%Y-%m-%d %H:%M') }} EST
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -197,11 +269,52 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="schedule_type" class="form-label">Schedule Type</label>
-                        <select class="form-select" id="schedule_type" name="schedule_type">
-                            <option value="daily">Daily (2:00 AM UTC)</option>
-                            <option value="weekly">Weekly (Monday 2:00 AM UTC)</option>
-                            <option value="custom">Custom (configure later)</option>
+                        <label class="form-label">Schedule Type</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <select class="form-select schedule-preset-selector" id="schedule_preset" name="schedule_preset">
+                                    <option value="custom">Custom Schedule</option>
+                                    <option value="daily-2am" selected>Daily at 2:00 AM</option>
+                                    <option value="daily-6am">Daily at 6:00 AM</option>
+                                    <option value="daily-12pm">Daily at 12:00 PM</option>
+                                    <option value="daily-6pm">Daily at 6:00 PM</option>
+                                    <option value="daily-10pm">Daily at 10:00 PM</option>
+                                    <option value="weekly-mon-2am">Weekly (Monday) at 2:00 AM</option>
+                                    <option value="weekly-fri-6pm">Weekly (Friday) at 6:00 PM</option>
+                                    <option value="hourly">Every Hour</option>
+                                    <option value="every-4-hours">Every 4 Hours</option>
+                                    <option value="every-12-hours">Every 12 Hours</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="time-input-group">
+                                    <input type="number" class="form-control" id="custom_hour" name="custom_hour"
+                                           placeholder="HH" min="0" max="23" value="2">
+                                    <span class="time-separator">:</span>
+                                    <input type="number" class="form-control" id="custom_minute" name="custom_minute"
+                                           placeholder="MM" min="0" max="59" value="0">
+                                    <span class="text-muted ms-1">EST</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            Choose a preset or set custom hour (0-23) and minute (0-59) in EST
+                        </div>
+                    </div>
+
+                    <div class="mb-3 weekly-options" id="weekly_options" style="display: none;">
+                        <label class="form-label">
+                            <i class="bi bi-calendar-week me-1"></i>
+                            Day of Week
+                        </label>
+                        <select class="form-select" id="day_of_week" name="day_of_week">
+                            <option value="0">Monday</option>
+                            <option value="1">Tuesday</option>
+                            <option value="2">Wednesday</option>
+                            <option value="3">Thursday</option>
+                            <option value="4">Friday</option>
+                            <option value="5">Saturday</option>
+                            <option value="6">Sunday</option>
                         </select>
                     </div>
 
@@ -224,6 +337,57 @@
 </div>
 
 <script>
+// Preset configurations
+const presetConfigs = {
+    'custom': { hour: 2, minute: 0, showWeekly: false },
+    'daily-2am': { hour: 2, minute: 0, showWeekly: false },
+    'daily-6am': { hour: 6, minute: 0, showWeekly: false },
+    'daily-12pm': { hour: 12, minute: 0, showWeekly: false },
+    'daily-6pm': { hour: 18, minute: 0, showWeekly: false },
+    'daily-10pm': { hour: 22, minute: 0, showWeekly: false },
+    'weekly-mon-2am': { hour: 2, minute: 0, showWeekly: true, dayOfWeek: 0 },
+    'weekly-fri-6pm': { hour: 18, minute: 0, showWeekly: true, dayOfWeek: 4 },
+    'hourly': { hour: 0, minute: 0, showWeekly: false }, // Will be handled by schedule type
+    'every-4-hours': { hour: 0, minute: 0, showWeekly: false }, // Will be handled by schedule type
+    'every-12-hours': { hour: 0, minute: 0, showWeekly: false } // Will be handled by schedule type
+};
+
+// Handle preset changes
+document.getElementById('schedule_preset').addEventListener('change', function() {
+    const preset = this.value;
+    const config = presetConfigs[preset];
+
+    if (config) {
+        // Update time fields
+        document.getElementById('custom_hour').value = config.hour;
+        document.getElementById('custom_minute').value = config.minute;
+
+        // Show/hide weekly options with smooth transition
+        const weeklyOptions = document.getElementById('weekly_options');
+        if (config.showWeekly) {
+            weeklyOptions.style.display = 'block';
+            weeklyOptions.style.opacity = '0';
+            setTimeout(() => {
+                weeklyOptions.style.opacity = '1';
+            }, 10);
+            if (config.dayOfWeek !== undefined) {
+                document.getElementById('day_of_week').value = config.dayOfWeek;
+            }
+        } else {
+            weeklyOptions.style.opacity = '0';
+            setTimeout(() => {
+                weeklyOptions.style.display = 'none';
+            }, 200);
+        }
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Trigger change event to set initial values
+    document.getElementById('schedule_preset').dispatchEvent(new Event('change'));
+});
+
 function confirmDelete(scheduleId, theatreName) {
     if (confirm(`Are you sure you want to delete the scheduled scrape for "${theatreName}"?`)) {
         const form = document.createElement('form');

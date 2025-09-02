@@ -52,7 +52,7 @@ celery_app.conf.update(
         },
         "scrape-all-theatres-daily": {
             "task": "app.tasks.scraping.scrape_all_theatres",
-            "schedule": crontab(hour=2, minute=0),  # Daily at 2 AM UTC (legacy)
+            "schedule": crontab(hour=2, minute=0),  # Daily at 2 AM EST (legacy)
         },
     },
 )

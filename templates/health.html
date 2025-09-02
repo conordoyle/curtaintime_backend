@@ -89,7 +89,7 @@
                                 <td>
                                     <strong>{{ log.theatre.name }}</strong>
                                 </td>
-                                <td>{{ log.started_at.strftime('%m/%d %H:%M') }}</td>
+                                <td>{{ log.started_at_est.strftime('%m/%d %H:%M') }} EST</td>
                                 <td>
                                     {% if log.completed_at %}
                                         {{ ((log.completed_at - log.started_at).total_seconds() / 60)|round(1) }} min
@@ -156,7 +156,7 @@
                                 </td>
                                 <td>
                                     {% if stat.theatre.last_scrape %}
-                                        {{ stat.theatre.last_scrape.strftime('%m/%d %H:%M') }}
+                                        {{ stat.last_scrape_est.strftime('%m/%d %H:%M') }} EST
                                     {% else %}
                                         <span class="text-muted">Never</span>
                                     {% endif %}
