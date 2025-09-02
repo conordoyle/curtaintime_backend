@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+
+{% block title %}Scraping History - CurtainTime{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-clock-history text-primary me-2"></i>
+        Scraping History
+    </h1>
+    <div class="btn-group" role="group">
+        <a href="/dashboard/scraping" class="btn btn-outline-secondary {% if not selected_theatre %}active{% endif %}">
+            All Theatres
+        </a>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                {% if selected_theatre %}
+                    {{ theatre_dict[selected_theatre].name }}
+                {% else %}
+                    Filter by Theatre
+                {% endif %}
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="/dashboard/scraping">All Theatres</a></li>
+                {% for theatre in theatres %}
+                <li><a class="dropdown-item {% if theatre.id == selected_theatre %}active{% endif %}"
+                       href="/dashboard/scraping?theatre_id={{ theatre.id }}">
+                    {{ theatre.name }}
+                </a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Status Summary -->
+<div class="row mb-4">
+    {% for status, count in status_counts.items() %}
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body text-center">
+                <div class="fs-2 mb-2">
+                    {% if status == 'success' %}
+                        <i class="bi bi-check-circle text-success"></i>
+                    {% elif status == 'error' %}
+                        <i class="bi bi-x-circle text-danger"></i>
+                    {% elif status == 'partial_success' %}
+                        <i class="bi bi-exclamation-triangle text-warning"></i>
+                    {% elif status == 'unchanged' %}
+                        <i class="bi bi-pause-circle text-info"></i>
+                    {% else %}
+                        <i class="bi bi-question-circle text-secondary"></i>
+                    {% endif %}
+                </div>
+                <h5 class="card-title mb-1">{{ count }}</h5>
+                <p class="card-text text-muted mb-0">{{ status|replace('_', ' ')|title }}</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Change Tracking Summary -->
+{% set change_counts = {} %}
+{% for log in logs %}
+    {% if log.change_status %}
+        {% if change_counts[log.change_status] is undefined %}
+            {% set _ = change_counts.update({log.change_status: 0}) %}
+        {% endif %}
+        {% set _ = change_counts.update({log.change_status: change_counts[log.change_status] + 1}) %}
+    {% endif %}
+{% endfor %}
+
+{% if change_counts %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Change Tracking Summary
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for change_status, count in change_counts.items() %}
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <div class="fs-3 mb-2">
+                                {% if change_status == 'same' %}
+                                    <i class="bi bi-check-circle text-success"></i>
+                                {% elif change_status == 'changed' %}
+                                    <i class="bi bi-exclamation-triangle text-warning"></i>
+                                {% elif change_status == 'new' %}
+                                    <i class="bi bi-plus-circle text-info"></i>
+                                {% else %}
+                                    <i class="bi bi-question-circle text-secondary"></i>
+                                {% endif %}
+                            </div>
+                            <h6 class="mb-1">{{ count }}</h6>
+                            <small class="text-muted">{{ change_status|title }} pages</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Change tracking helps optimize scraping by skipping unchanged pages
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Scraping History Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Recent Scraping Activity</h5>
+        <small class="text-muted">
+            Showing last {{ logs|length }} scrapes
+            {% if selected_theatre %} for {{ theatre_dict[selected_theatre].name }}{% endif %}
+        </small>
+    </div>
+    <div class="card-body">
+        {% if logs %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Theatre</th>
+                        <th>Started</th>
+                        <th>Duration</th>
+                        <th>Shows Found</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>
+                            <strong>{{ theatre_dict[log.theatre_id].name }}</strong>
+                        </td>
+                        <td>
+                            <div>{{ log.started_at.strftime('%Y-%m-%d') }}</div>
+                            <small class="text-muted">{{ log.started_at.strftime('%H:%M:%S') }}</small>
+                        </td>
+                        <td>
+                            {% if log.completed_at %}
+                                {{ ((log.completed_at - log.started_at).total_seconds() / 60)|round(1) }} min
+                            {% elif log.started_at %}
+                                <span class="text-warning">Running...</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ log.shows_found or 0 }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex flex-column gap-1">
+                                <span class="badge bg-{% if log.status == 'success' %}success{% elif log.status == 'error' %}danger{% elif log.status == 'partial_success' %}warning{% elif log.status == 'unchanged' %}info{% else %}secondary{% endif %}">
+                                    {{ log.status|replace('_', ' ')|title }}
+                                </span>
+                                {% if log.change_status %}
+                                    <small class="text-muted">
+                                        {% if log.change_status == 'same' %}
+                                            <i class="bi bi-check-circle text-success me-1"></i>Same content
+                                        {% elif log.change_status == 'changed' %}
+                                            <i class="bi bi-exclamation-triangle text-warning me-1"></i>Content changed
+                                        {% elif log.change_status == 'new' %}
+                                            <i class="bi bi-plus-circle text-info me-1"></i>First scrape
+                                        {% else %}
+                                            <i class="bi bi-question-circle me-1"></i>{{ log.change_status|title }}
+                                        {% endif %}
+                                    </small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                {% if log.raw_markdown %}
+                                    <button class="btn btn-sm btn-outline-info"
+                                            onclick="showRawMarkdown({{ log.id }}, '{{ theatre_dict[log.theatre_id].name }}')">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </button>
+                                {% endif %}
+                                {% if log.gemini_prompt %}
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            onclick="showGeminiPrompt({{ log.id }}, '{{ theatre_dict[log.theatre_id].name }}')">
+                                        <i class="bi bi-chat-dots"></i>
+                                    </button>
+                                {% endif %}
+                                {% if log.parsed_json %}
+                                    <button class="btn btn-sm btn-outline-success"
+                                            onclick="showGeminiResponse({{ log.id }}, '{{ theatre_dict[log.theatre_id].name }}')">
+                                        <i class="bi bi-braces"></i>
+                                    </button>
+                                {% endif %}
+                                {% if log.error_message %}
+                                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip"
+                                            title="{{ log.error_message }}">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                    </button>
+                                {% endif %}
+                                {% if not log.raw_markdown and not log.parsed_json and not log.error_message %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-clock-history fs-1 text-muted mb-3"></i>
+            <h5 class="text-muted">No scraping history</h5>
+            <p class="text-muted">No scrapes have been performed yet</p>
+            <a href="/dashboard/theatres" class="btn btn-primary">
+                <i class="bi bi-play-circle me-2"></i>
+                Start Scraping
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-lightning me-2"></i>
+                    Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <a href="/dashboard/theatres" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-building me-2"></i>
+                            Manual Scrape
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <button class="btn btn-outline-warning w-100" onclick="triggerFullScrape()">
+                            <i class="bi bi-play-circle-fill me-2"></i>
+                            Scrape All
+                        </button>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="/dashboard/health" class="btn btn-outline-info w-100">
+                            <i class="bi bi-heart-pulse me-2"></i>
+                            System Health
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function triggerFullScrape() {
+    if (confirm('Are you sure you want to trigger scraping for all theatres? This may take several minutes.')) {
+        fetch('/admin/scrape-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Full scrape triggered! Task ID: ' + data.task_id);
+            // Refresh page after 2 seconds to show updated status
+            setTimeout(() => location.reload(), 2000);
+        })
+        .catch(error => {
+            alert('Error triggering scrape: ' + error);
+        });
+    }
+}
+
+// Function to show raw markdown modal
+async function showRawMarkdown(logId, theatreName) {
+    document.getElementById('markdownTheatreName').textContent = theatreName;
+    document.getElementById('markdownLogId').textContent = logId;
+
+    try {
+        // Fetch the raw markdown data
+        const response = await fetch(`/dashboard/api/scrape-logs/${logId}/raw-markdown`);
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('rawMarkdownContent').textContent = data.raw_markdown || 'No markdown data available';
+        } else {
+            document.getElementById('rawMarkdownContent').textContent = 'Error loading markdown data';
+        }
+    } catch (error) {
+        document.getElementById('rawMarkdownContent').textContent = 'Error: ' + error.message;
+    }
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('rawMarkdownModal'));
+    modal.show();
+}
+
+// Function to show Gemini prompt modal
+async function showGeminiPrompt(logId, theatreName) {
+    document.getElementById('promptTheatreName').textContent = theatreName;
+    document.getElementById('promptLogId').textContent = logId;
+
+    try {
+        // Fetch the Gemini prompt
+        const response = await fetch(`/dashboard/api/scrape-logs/${logId}/gemini-prompt`);
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('geminiPromptContent').textContent = data.gemini_prompt || 'No prompt data available';
+        } else {
+            document.getElementById('geminiPromptContent').textContent = 'No prompt data available';
+        }
+    } catch (error) {
+        document.getElementById('geminiPromptContent').textContent = 'Error: ' + error.message;
+    }
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('geminiPromptModal'));
+    modal.show();
+}
+
+// Function to show Gemini response modal
+async function showGeminiResponse(logId, theatreName) {
+    document.getElementById('jsonTheatreName').textContent = theatreName;
+    document.getElementById('jsonLogId').textContent = logId;
+
+    try {
+        // Fetch the Gemini JSON response
+        const response = await fetch(`/dashboard/api/scrape-logs/${logId}/gemini-response`);
+        if (response.ok) {
+            const data = await response.json();
+            const formattedJson = JSON.stringify(data.parsed_json, null, 2);
+            document.getElementById('geminiResponseContent').textContent = formattedJson;
+        } else {
+            document.getElementById('geminiResponseContent').textContent = 'No JSON data available';
+        }
+    } catch (error) {
+        document.getElementById('geminiResponseContent').textContent = 'Error: ' + error.message;
+    }
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('geminiResponseModal'));
+    modal.show();
+}
+
+// Function to copy content to clipboard
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    const text = element.textContent;
+
+    navigator.clipboard.writeText(text).then(function() {
+        // Show success feedback
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="bi bi-check me-1"></i>Copied!';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+    }).catch(function(err) {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+
+// Function to download JSON
+function downloadJson() {
+    const jsonText = document.getElementById('geminiResponseContent').textContent;
+    const blob = new Blob([jsonText], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gemini-response-${document.getElementById('jsonLogId').textContent}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle=\"tooltip\"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+
+<!-- Raw Markdown Modal -->
+<div class="modal fade" id="rawMarkdownModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-file-earmark-text me-2"></i>
+                    Raw Markdown - <span id="markdownTheatreName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Scrape Log ID: <span id="markdownLogId"></span></label>
+                </div>
+                <pre id="rawMarkdownContent" class="bg-light p-3 rounded" style="max-height: 60vh; overflow-y: auto; font-size: 0.875rem;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('rawMarkdownContent')">
+                    <i class="bi bi-clipboard me-1"></i>
+                    Copy
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gemini Prompt Modal -->
+<div class="modal fade" id="geminiPromptModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-chat-dots me-2"></i>
+                    Gemini AI Prompt - <span id="promptTheatreName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Scrape Log ID: <span id="promptLogId"></span></label>
+                </div>
+                <pre id="geminiPromptContent" class="bg-light p-3 rounded" style="max-height: 60vh; overflow-y: auto; font-size: 0.875rem; white-space: pre-wrap;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('geminiPromptContent')">
+                    <i class="bi bi-clipboard me-1"></i>
+                    Copy
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gemini Response Modal -->
+<div class="modal fade" id="geminiResponseModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-braces me-2"></i>
+                    Gemini AI Response - <span id="jsonTheatreName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Scrape Log ID: <span id="jsonLogId"></span></label>
+                </div>
+                <pre id="geminiResponseContent" class="bg-light p-3 rounded" style="max-height: 60vh; overflow-y: auto; font-size: 0.875rem;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('geminiResponseContent')">
+                    <i class="bi bi-clipboard me-1"></i>
+                    Copy
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="downloadJson()">
+                    <i class="bi bi-download me-1"></i>
+                    Download JSON
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

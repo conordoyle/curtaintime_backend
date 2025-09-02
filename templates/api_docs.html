@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}API Documentation - CurtainTime{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-code-slash text-primary me-2"></i>
+        API Documentation
+    </h1>
+    <div class="btn-group" role="group">
+        <a href="/docs" target="_blank" class="btn btn-outline-primary">
+            <i class="bi bi-box-arrow-up-right me-2"></i>
+            Interactive API Docs
+        </a>
+        <a href="/redoc" target="_blank" class="btn btn-outline-secondary">
+            <i class="bi bi-file-earmark-text me-2"></i>
+            ReDoc
+        </a>
+    </div>
+</div>
+
+<!-- API Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    API Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">
+                    The CurtainTime API provides programmatic access to theatre data, scraping operations, and system management.
+                    All endpoints return JSON responses and use standard HTTP status codes.
+                </p>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6><i class="bi bi-building me-2"></i>Theatre Data</h6>
+                        <ul class="list-unstyled small">
+                            <li><code>GET /theatres</code> - List all theatres</li>
+                            <li><code>GET /theatres/{id}</code> - Get theatre details</li>
+                            <li><code>GET /theatres/{id}/shows</code> - Shows by theatre</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="bi bi-calendar-event me-2"></i>Show Data</h6>
+                        <ul class="list-unstyled small">
+                            <li><code>GET /shows</code> - List all shows</li>
+                            <li><code>GET /shows?theatre_id=X</code> - Filter by theatre</li>
+                            <li><code>GET /shows?days_ahead=30</code> - Filter by date</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="bi bi-gear me-2"></i>Management</h6>
+                        <ul class="list-unstyled small">
+                            <li><code>POST /admin/scrape/{id}</code> - Scrape theatre</li>
+                            <li><code>POST /admin/scrape-all</code> - Scrape all</li>
+                            <li><code>GET /admin/tasks/{id}</code> - Task status</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Authentication -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-shield-check me-2"></i>
+                    Authentication
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Currently:</strong> No authentication required</p>
+                <p class="text-muted small mb-0">
+                    All endpoints are publicly accessible. In production, consider adding API key authentication.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-globe me-2"></i>
+                    Base URL
+                </h6>
+            </div>
+            <div class="card-body">
+                <code class="d-block mb-2">http://localhost:8000</code>
+                <p class="text-muted small mb-0">
+                    Replace with your production domain when deployed.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Example Requests -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-code me-2"></i>
+                    Example API Requests
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="apiExamples">
+                    <!-- Get All Theatres -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#getTheatres">
+                                GET /theatres - Get All Theatres
+                            </button>
+                        </h2>
+                        <div id="getTheatres" class="accordion-collapse collapse show" data-bs-parent="#apiExamples">
+                            <div class="accordion-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Request:</h6>
+                                        <pre><code>curl http://localhost:8000/theatres</code></pre>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Response:</h6>
+                                        <pre><code>[
+  {
+    "id": "music_hall",
+    "name": "The Music Hall",
+    "base_url": "https://www.themusichall.org/agenda/",
+    "enabled": true
+  }
+]</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Get Shows -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#getShows">
+                                GET /shows - Get Shows with Filtering
+                            </button>
+                        </h2>
+                        <div id="getShows" class="accordion-collapse collapse" data-bs-parent="#apiExamples">
+                            <div class="accordion-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Request:</h6>
+                                        <pre><code>curl "http://localhost:8000/shows?theatre_id=music_hall&days_ahead=30"</code></pre>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Response:</h6>
+                                        <pre><code>[
+  {
+    "id": 1,
+    "theatre_id": "music_hall",
+    "title": "Hamilton",
+    "start_datetime_utc": "2025-12-25T20:00:00+00:00",
+    "description": "The revolutionary musical...",
+    "image_url": "https://...",
+    "ticket_url": "https://..."
+  }
+]</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trigger Scrape -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#scrapeTheatre">
+                                POST /admin/scrape/{theatre_id} - Trigger Scrape
+                            </button>
+                        </h2>
+                        <div id="scrapeTheatre" class="accordion-collapse collapse" data-bs-parent="#apiExamples">
+                            <div class="accordion-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Request:</h6>
+                                        <pre><code>curl -X POST http://localhost:8000/admin/scrape/music_hall</code></pre>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Response:</h6>
+                                        <pre><code>{
+  "message": "Scrape triggered for The Music Hall",
+  "task_id": "xyz-123-abc",
+  "theatre_id": "music_hall"
+}</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Response Codes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-check-circle me-2"></i>
+                    HTTP Status Codes
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Success Codes:</h6>
+                        <ul class="list-unstyled">
+                            <li><code class="text-success">200 OK</code> - Request successful</li>
+                            <li><code class="text-success">201 Created</code> - Resource created</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Error Codes:</h6>
+                        <ul class="list-unstyled">
+                            <li><code class="text-warning">400 Bad Request</code> - Invalid parameters</li>
+                            <li><code class="text-danger">404 Not Found</code> - Resource not found</li>
+                            <li><code class="text-danger">500 Internal Error</code> - Server error</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Test API endpoints
+function testEndpoint(url, method = 'GET') {
+    fetch(url, { method: method })
+        .then(response => response.json())
+        .then(data => {
+            console.log('API Response:', data);
+            alert('API call successful! Check console for details.');
+        })
+        .catch(error => {
+            console.error('API Error:', error);
+            alert('API call failed. Check console for details.');
+        });
+}
+</script>
+{% endblock %}

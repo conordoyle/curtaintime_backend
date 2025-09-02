@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Scheduled Scraping - CurtainTime{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-clock-history text-primary me-2"></i>
+        Scheduled Scraping
+    </h1>
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createScheduleModal">
+            <i class="bi bi-plus-circle me-2"></i>
+            Create Schedule
+        </button>
+        <form method="post" action="/dashboard/schedules/run-all" class="d-inline">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-play-circle me-2"></i>
+                Run All Now
+            </button>
+        </form>
+        <a href="/dashboard/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- System Status Alert -->
+{% if not redis_available %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>Scheduled scraping is not active.</strong>
+    Redis is not configured. Scheduled jobs will run synchronously when manually triggered.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Success/Error Messages -->
+{% if request.query_params.get('message') %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle me-2"></i>
+    {{ request.query_params.get('message').replace('+', ' ') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Filter Options -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                {% if selected_theatre %}
+                    Filter: {{ theatre_dict[selected_theatre].name }}
+                {% else %}
+                    All Theatres
+                {% endif %}
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item {% if not selected_theatre %}active{% endif %}"
+                       href="/dashboard/schedules">All Theatres</a></li>
+                {% for theatre in theatres %}
+                <li><a class="dropdown-item {% if theatre.id == selected_theatre %}active{% endif %}"
+                       href="/dashboard/schedules?theatre_id={{ theatre.id }}">
+                    {{ theatre.name }}
+                </a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6 text-end">
+        <small class="text-muted">
+            Showing {{ schedules|length }} schedules
+        </small>
+    </div>
+</div>
+
+<!-- Schedules Table -->
+<div class="card">
+    <div class="card-body">
+        {% if schedules %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Theatre</th>
+                        <th>Schedule Type</th>
+                        <th>Status</th>
+                        <th>Last Run</th>
+                        <th>Next Run</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for schedule in schedules %}
+                    <tr>
+                        <td>
+                            <strong>{{ theatre_dict[schedule.theatre_id].name }}</strong>
+                            <br>
+                            <small class="text-muted">{{ schedule.theatre_id }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ schedule.schedule_type.title() }}</span>
+                            {% if schedule.schedule_config %}
+                                <br>
+                                <small class="text-muted">
+                                    {% if schedule.schedule_type == "daily" %}
+                                        Daily at {{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} UTC
+                                    {% elif schedule.schedule_type == "weekly" %}
+                                        Weekly ({{ schedule.schedule_config.day_of_week }}) at {{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} UTC
+                                    {% else %}
+                                        Custom schedule
+                                    {% endif %}
+                                </small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if schedule.enabled %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    Active
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-pause-circle me-1"></i>
+                                    Disabled
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if schedule.last_run %}
+                                {{ schedule.last_run.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if schedule.next_run %}
+                                {{ schedule.next_run.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <form method="post" action="/dashboard/schedules/{{ schedule.id }}/toggle" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                            title="{% if schedule.enabled %}Disable{% else %}Enable{% endif %} schedule">
+                                        <i class="bi bi-toggle-{% if schedule.enabled %}on{% else %}off{% endif %}"></i>
+                                    </button>
+                                </form>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        onclick="confirmDelete({{ schedule.id }}, '{{ theatre_dict[schedule.theatre_id].name }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-clock-history fs-1 text-muted mb-3"></i>
+            <h5 class="text-muted">No Scheduled Scrapes</h5>
+            <p class="text-muted mb-3">
+                Create your first scheduled scraping job to automatically update theatre data.
+            </p>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createScheduleModal">
+                <i class="bi bi-plus-circle me-2"></i>
+                Create First Schedule
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create Schedule Modal -->
+<div class="modal fade" id="createScheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Scheduled Scrape</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="/dashboard/schedules/create">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="theatre_id" class="form-label">Theatre</label>
+                        <select class="form-select" id="theatre_id" name="theatre_id" required>
+                            <option value="">Select a theatre...</option>
+                            {% for theatre in theatres %}
+                            <option value="{{ theatre.id }}">{{ theatre.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="schedule_type" class="form-label">Schedule Type</label>
+                        <select class="form-select" id="schedule_type" name="schedule_type">
+                            <option value="daily">Daily (2:00 AM UTC)</option>
+                            <option value="weekly">Weekly (Monday 2:00 AM UTC)</option>
+                            <option value="custom">Custom (configure later)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enabled" name="enabled" value="true" checked>
+                            <label class="form-check-label" for="enabled">
+                                Enable schedule immediately
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(scheduleId, theatreName) {
+    if (confirm(`Are you sure you want to delete the scheduled scrape for "${theatreName}"?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/dashboard/schedules/${scheduleId}/delete`;
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

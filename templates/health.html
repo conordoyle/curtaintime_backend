@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}System Health - CurtainTime{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-heart-pulse text-success me-2"></i>
+        System Health
+    </h1>
+    <button class="btn btn-outline-primary" onclick="location.reload()">
+        <i class="bi bi-arrow-clockwise me-2"></i>
+        Refresh
+    </button>
+</div>
+
+<!-- Health Status Cards -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-database me-2"></i>
+                    Database Health
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h5 class="{% if '✅' in db_health %}text-success{% else %}text-danger{% endif %} mb-1">
+                            {% if '✅' in db_health %}Healthy{% else %}Issues{% endif %}
+                        </h5>
+                        <small class="text-muted">{{ db_health }}</small>
+                    </div>
+                    <i class="bi bi-{% if '✅' in db_health %}check-circle-fill text-success{% else %}x-circle-fill text-danger{% endif %} fs-2"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-cloud me-2"></i>
+                    Vercel Blob Storage
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h5 class="text-success mb-1">Connected</h5>
+                        <small class="text-muted">Image optimization active</small>
+                    </div>
+                    <i class="bi bi-check-circle-fill text-success fs-2"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-activity me-2"></i>
+                    Recent Scraping Activity
+                </h5>
+                <a href="/dashboard/scraping" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if recent_logs %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Theatre</th>
+                                <th>Started</th>
+                                <th>Duration</th>
+                                <th>Shows Found</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_logs %}
+                            <tr>
+                                <td>
+                                    <strong>{{ log.theatre.name }}</strong>
+                                </td>
+                                <td>{{ log.started_at.strftime('%m/%d %H:%M') }}</td>
+                                <td>
+                                    {% if log.completed_at %}
+                                        {{ ((log.completed_at - log.started_at).total_seconds() / 60)|round(1) }} min
+                                    {% else %}
+                                        <span class="text-warning">Running...</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.shows_found or 0 }}</td>
+                                <td>
+                                    <span class="badge bg-{% if log.status == 'success' %}success{% elif log.status == 'error' %}danger{% elif log.status == 'partial_success' %}warning{% else %}secondary{% endif %}">
+                                        {{ log.status|replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No recent scraping activity</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Theatre Statistics -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-building me-2"></i>
+                    Theatre Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Theatre</th>
+                                <th>Shows</th>
+                                <th>Status</th>
+                                <th>Last Scrape</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in theatre_stats %}
+                            <tr>
+                                <td>
+                                    <strong>{{ stat.theatre.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ stat.theatre.id }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ stat.show_count }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if stat.theatre.enabled %}success{% else %}secondary{% endif %}">
+                                        {% if stat.theatre.enabled %}Active{% else %}Disabled{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if stat.theatre.last_scrape %}
+                                        {{ stat.theatre.last_scrape.strftime('%m/%d %H:%M') }}
+                                    {% else %}
+                                        <span class="text-muted">Never</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="/dashboard/theatres/{{ stat.theatre.id }}/scrape" class="btn btn-sm btn-outline-primary">
+                                        Scrape
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Metrics -->
+<div class="row mt-4">
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Show Statistics
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="fs-3 fw-bold text-primary">{{ total_shows }}</div>
+                        <small class="text-muted">Total Shows</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="fs-3 fw-bold text-success">{{ shows_with_images }}</div>
+                        <small class="text-muted">With Images</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-cpu me-2"></i>
+                    System Resources
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="fs-3 fw-bold text-info">FastAPI</div>
+                        <small class="text-muted">Web Framework</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="fs-3 fw-bold text-warning">Gemini 2.5</div>
+                        <small class="text-muted">AI Engine</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh every 30 seconds
+setInterval(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CurtainTime{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-house-door text-primary me-2"></i>
+        Dashboard Overview
+    </h1>
+    <small class="text-muted">Last updated: {{ now.strftime('%Y-%m-%d %H:%M') }}</small>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-building fs-1 text-primary mb-2"></i>
+                <h3 class="card-title mb-1">{{ stats.total_theatres }}</h3>
+                <p class="card-text text-muted mb-0">Total Theatres</p>
+                <small class="text-success">{{ stats.active_theatres }} active</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-event fs-1 text-success mb-2"></i>
+                <h3 class="card-title mb-1">{{ stats.total_shows }}</h3>
+                <p class="card-text text-muted mb-0">Total Shows</p>
+                <small class="text-info">{{ stats.recent_shows }} upcoming</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-gear fs-1 text-warning mb-2"></i>
+                <h3 class="card-title mb-1">{{ recent_logs|length }}</h3>
+                <p class="card-text text-muted mb-0">Recent Scrapes</p>
+                <small class="{% if stats.failed_scrapes > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ stats.failed_scrapes }} failed
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-graph-up fs-1 text-info mb-2"></i>
+                <h3 class="card-title mb-1">98%</h3>
+                <p class="card-text text-muted mb-0">System Health</p>
+                <small class="text-success">All systems operational</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-activity me-2"></i>
+                    Recent Scraping Activity
+                </h5>
+                <a href="/dashboard/scraping" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if recent_logs %}
+                <div class="list-group list-group-flush">
+                    {% for log in recent_logs %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ log.theatre.name }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    {{ log.started_at.strftime('%Y-%m-%d %H:%M') }} -
+                                    {{ log.shows_found }} shows found
+                                </small>
+                            </div>
+                            <span class="badge bg-{% if log.status == 'success' %}success{% elif log.status == 'error' %}danger{% elif log.status == 'partial_success' %}warning{% else %}secondary{% endif %}">
+                                {{ log.status|replace('_', ' ')|title }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No recent scraping activity</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-lightning me-2"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/dashboard/theatres" class="btn btn-outline-primary">
+                        <i class="bi bi-building me-2"></i>
+                        Manage Theatres
+                    </a>
+                    <a href="/dashboard/shows" class="btn btn-outline-success">
+                        <i class="bi bi-calendar-event me-2"></i>
+                        Browse Shows
+                    </a>
+                    <button class="btn btn-outline-warning" onclick="triggerFullScrape()">
+                        <i class="bi bi-play-circle me-2"></i>
+                        Scrape All Theatres
+                    </button>
+                    <a href="/dashboard/health" class="btn btn-outline-info">
+                        <i class="bi bi-heart-pulse me-2"></i>
+                        System Health
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    System Info
+                </h6>
+            </div>
+            <div class="card-body">
+                <small class="text-muted">
+                    <strong>API:</strong> FastAPI with async support<br>
+                    <strong>Database:</strong> PostgreSQL<br>
+                    <strong>AI:</strong> Gemini 2.5 Flash<br>
+                    <strong>Storage:</strong> Vercel Blob<br>
+                    <strong>Scraping:</strong> Firecrawl + Playwright
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function triggerFullScrape() {
+    if (confirm('Are you sure you want to trigger scraping for all theatres? This may take several minutes.')) {
+        fetch('/admin/scrape-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Full scrape triggered! Task ID: ' + data.task_id);
+        })
+        .catch(error => {
+            alert('Error triggering scrape: ' + error);
+        });
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - CurtainTime{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-building-add me-2"></i>
+        {{ title }}
+    </h1>
+    <a href="/dashboard/theatres" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>
+        Back to Theatres
+    </a>
+</div>
+
+<!-- Error Messages -->
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Theatre Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% if action == 'edit' %}/dashboard/theatres/{{ theatre.id }}/edit{% else %}/dashboard/theatres/create{% endif %}">
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="theatre_id" class="form-label">
+                                Theatre ID <span class="text-danger">*</span>
+                            </label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="theatre_id"
+                                   name="theatre_id"
+                                   value="{{ theatre.id if theatre else '' }}"
+                                   {% if action == 'edit' %}readonly{% endif %}
+                                   required
+                                   pattern="[a-zA-Z0-9_-]+"
+                                   title="Only letters, numbers, underscores, and hyphens allowed">
+                            <div class="form-text">Unique identifier for the theatre</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="theatre_name" class="form-label">
+                                Theatre Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="theatre_name"
+                                   name="theatre_name"
+                                   value="{{ theatre.name if theatre else '' }}"
+                                   required>
+                            <div class="form-text">Display name for the theatre</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="base_url" class="form-label">
+                            Base URL <span class="text-danger">*</span>
+                        </label>
+                        <input type="url"
+                               class="form-control"
+                               id="base_url"
+                               name="base_url"
+                               value="{{ theatre.base_url if theatre else '' }}"
+                               required
+                               placeholder="https://example.com">
+                        <div class="form-text">Main website URL for the theatre</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="enabled"
+                                   name="enabled"
+                                   value="true"
+                                   {% if theatre and theatre.enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="enabled">
+                                Enable theatre for scraping
+                            </label>
+                        </div>
+                        <div class="form-text">Disabled theatres won't be scraped automatically</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="config_json" class="form-label">
+                            Configuration JSON
+                        </label>
+                        <textarea class="form-control"
+                                  id="config_json"
+                                  name="config_json"
+                                  rows="15"
+                                  placeholder='{
+  "scraping_strategy": {
+    "type": "single_url",
+    "url": "https://example.com/events"
+  },
+  "scrape_params": {
+    "formats": ["markdown"],
+    "onlyMainContent": true
+  }
+}'>{{ config_json if config_json else '' }}</textarea>
+                        <div class="form-text">
+                            JSON configuration for scraping strategy and parameters
+                            <a href="#" onclick="loadTemplate()">Load Template</a>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>
+                            {% if action == 'edit' %}Update Theatre{% else %}Create Theatre{% endif %}
+                        </button>
+                        <a href="/dashboard/theatres" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Configuration Help
+                </h6>
+            </div>
+            <div class="card-body">
+                <h6>Scraping Strategies:</h6>
+                <ul class="small mb-3">
+                    <li><code>single_url</code> - Scrape one specific page</li>
+                    <li><code>multi_url</code> - Generate multiple URLs</li>
+                    <li><code>single_url_with_actions</code> - Browser interactions</li>
+                    <li><code>crawl</code> - Site-wide crawling</li>
+                </ul>
+
+                <h6>Common Parameters:</h6>
+                <ul class="small">
+                    <li><code>waitFor</code> - Wait time in milliseconds</li>
+                    <li><code>onlyMainContent</code> - Extract main content only</li>
+                    <li><code>timeout</code> - Request timeout</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-file-earmark-code me-2"></i>
+                    Quick Templates
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadSingleUrlTemplate()">
+                        Single URL
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadMultiUrlTemplate()">
+                        Multi URL
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadBrowserTemplate()">
+                        Browser Actions
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadTemplate() {
+    // Basic template
+    const template = {
+        "scraping_strategy": {
+            "type": "single_url",
+            "url": "{{ base_url }}/events"
+        },
+        "scrape_params": {
+            "formats": ["markdown"],
+            "onlyMainContent": true,
+            "waitFor": 2000
+        }
+    };
+    document.getElementById('config_json').value = JSON.stringify(template, null, 2);
+}
+
+function loadSingleUrlTemplate() {
+    const template = {
+        "scraping_strategy": {
+            "type": "single_url",
+            "url": "{{ base_url }}/events"
+        },
+        "scrape_params": {
+            "formats": ["markdown"],
+            "onlyMainContent": true,
+            "waitFor": 2000
+        }
+    };
+    document.getElementById('config_json').value = JSON.stringify(template, null, 2);
+}
+
+function loadMultiUrlTemplate() {
+    const template = {
+        "scraping_strategy": {
+            "type": "multi_url",
+            "url_generation": {
+                "method": "parameter_based",
+                "template": "{{ base_url }}/events?page={page}",
+                "parameters": {
+                    "page": {
+                        "type": "sequential",
+                        "start": 1,
+                        "count": 5
+                    }
+                }
+            }
+        },
+        "scrape_params": {
+            "formats": ["markdown"],
+            "onlyMainContent": true,
+            "waitFor": 1000
+        }
+    };
+    document.getElementById('config_json').value = JSON.stringify(template, null, 2);
+}
+
+function loadBrowserTemplate() {
+    const template = {
+        "scraping_strategy": {
+            "type": "single_url_with_actions",
+            "url": "{{ base_url }}/events",
+            "actions": [
+                {
+                    "type": "wait",
+                    "milliseconds": 3000
+                },
+                {
+                    "type": "click",
+                    "selector": ".load-more-button"
+                },
+                {
+                    "type": "wait",
+                    "milliseconds": 2000
+                }
+            ]
+        },
+        "scrape_params": {
+            "formats": ["markdown"],
+            "onlyMainContent": true,
+            "timeout": 30000
+        }
+    };
+    document.getElementById('config_json').value = JSON.stringify(template, null, 2);
+}
+
+// Auto-format JSON on blur
+document.getElementById('config_json').addEventListener('blur', function() {
+    try {
+        const parsed = JSON.parse(this.value);
+        this.value = JSON.stringify(parsed, null, 2);
+    } catch (e) {
+        // Invalid JSON, leave as-is
+    }
+});
+</script>
+{% endblock %}

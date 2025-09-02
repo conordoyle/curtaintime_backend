@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Import Theatres - CurtainTime{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-cloud-upload me-2"></i>
+        Import Theatres
+    </h1>
+    <a href="/dashboard/theatres" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>
+        Back to Theatres
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Available Theatre Configurations</h5>
+            </div>
+            <div class="card-body">
+                {% if available_configs %}
+                <form method="post" action="/dashboard/theatres/import">
+                    <p class="text-muted mb-3">
+                        Select the theatre configurations you want to import into the database:
+                    </p>
+
+                    <div class="row">
+                        {% for config in available_configs %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               id="config_{{ config.id }}"
+                                               name="selected_configs"
+                                               value="{{ config.id }}">
+                                        <label class="form-check-label" for="config_{{ config.id }}">
+                                            <strong>{{ config.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ config.id }}</small>
+                                        </label>
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="bi bi-file-earmark-text me-1"></i>
+                                            {{ config.file }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-cloud-upload me-2"></i>
+                            Import Selected Theatres
+                        </button>
+                        <a href="/dashboard/theatres" class="btn btn-outline-secondary ms-2">Cancel</a>
+                    </div>
+                </form>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-folder-x fs-1 text-muted mb-3"></i>
+                    <h5 class="text-muted">No Configuration Files Found</h5>
+                    <p class="text-muted">
+                        No theatre configuration files were found in <code>../theatre_scraper/configs/</code>
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Import Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <h6>What gets imported:</h6>
+                <ul class="small mb-3">
+                    <li>Theatre name and ID</li>
+                    <li>Base URL for scraping</li>
+                    <li>Complete scraping configuration</li>
+                    <li>Enabled/disabled status</li>
+                </ul>
+
+                <h6>Validation:</h6>
+                <ul class="small mb-3">
+                    <li>Skips existing theatres</li>
+                    <li>Validates JSON configuration</li>
+                    <li>Checks for required fields</li>
+                </ul>
+
+                <div class="alert alert-warning small" role="alert">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    <strong>Note:</strong> This only imports theatre configurations.
+                    It does not import any existing scraped data.
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Alternative Options
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">Don't have config files?</p>
+                <a href="/dashboard/theatres/create" class="btn btn-outline-primary btn-sm w-100 mb-2">
+                    <i class="bi bi-plus me-1"></i>
+                    Create Theatre Manually
+                </a>
+                <small class="text-muted">
+                    Create theatres from scratch with custom configurations
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Select all/none functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Add select all button if there are many theatres
+    const checkboxes = document.querySelectorAll('input[name="selected_configs"]');
+    if (checkboxes.length > 3) {
+        const form = document.querySelector('form');
+        const buttonGroup = form.querySelector('.mt-4');
+
+        const selectAllBtn = document.createElement('button');
+        selectAllBtn.type = 'button';
+        selectAllBtn.className = 'btn btn-outline-secondary me-2';
+        selectAllBtn.innerHTML = '<i class="bi bi-check-all me-2"></i>Select All';
+        selectAllBtn.onclick = function() {
+            checkboxes.forEach(cb => cb.checked = true);
+        };
+
+        buttonGroup.insertBefore(selectAllBtn, buttonGroup.firstChild);
+    }
+});
+</script>
+{% endblock %}

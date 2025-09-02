@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Theatres - CurtainTime{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-building text-primary me-2"></i>
+        Theatre Management
+    </h1>
+    <div class="btn-group" role="group">
+        <a href="/dashboard/theatres/create" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>
+            Create Theatre
+        </a>
+        <a href="/dashboard/theatres/import" class="btn btn-outline-success">
+            <i class="bi bi-cloud-upload me-2"></i>
+            Import Theatres
+        </a>
+        <a href="/dashboard/schedules" class="btn btn-outline-info">
+            <i class="bi bi-clock-history me-2"></i>
+            Scheduled Scraping
+        </a>
+        <a href="/dashboard/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Success/Error Messages -->
+{% if request.query_params.get('message') %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle me-2"></i>
+    {{ request.query_params.get('message').replace('+', ' ') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Theatres Grid -->
+<div class="row">
+    {% for theatre in theatres %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">{{ theatre.name }}</h5>
+                <span class="badge bg-{% if theatre.enabled %}success{% else %}secondary{% endif %}">
+                    {% if theatre.enabled %}Active{% else %}Disabled{% endif %}
+                </span>
+            </div>
+
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted d-block">ID:</small>
+                    <code class="small">{{ theatre.id }}</code>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Base URL:</small>
+                    <a href="{{ theatre.base_url }}" target="_blank" class="small text-truncate d-inline-block" style="max-width: 100%;">
+                        {{ theatre.base_url }}
+                    </a>
+                </div>
+
+                <div class="row text-center mb-3">
+                    <div class="col-6">
+                        <div class="fs-4 fw-bold text-primary">{{ theatre.show_count }}</div>
+                        <small class="text-muted">Shows</small>
+                    </div>
+                    <div class="col-6">
+                        {% if theatre.last_scrape %}
+                        <div class="small text-muted">
+                            {{ theatre.last_scrape.strftime('%m/%d %H:%M') }}
+                        </div>
+                        <small class="text-muted">Last Scrape</small>
+                        {% else %}
+                        <div class="small text-muted">Never</div>
+                        <small class="text-muted">Last Scrape</small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if theatre.last_status %}
+                <div class="mb-3">
+                    <small class="text-muted">Last Status:</small>
+                    <span class="badge bg-{% if theatre.last_status == 'success' %}success{% elif theatre.last_status == 'error' %}danger{% elif theatre.last_status == 'partial_success' %}warning{% else %}secondary{% endif %} ms-2">
+                        {{ theatre.last_status|replace('_', ' ')|title }}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card-footer">
+                <div class="d-grid gap-2">
+                    <form method="post" action="/dashboard/theatres/{{ theatre.id }}/scrape" class="d-inline">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-play-circle me-1"></i>
+                            Scrape Now
+                        </button>
+                    </form>
+
+                    <div class="btn-group w-100" role="group">
+                        <a href="/dashboard/shows?theatre_id={{ theatre.id }}" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-eye me-1"></i>
+                            View Shows
+                        </a>
+                        <a href="/dashboard/scraping?theatre_id={{ theatre.id }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-clock-history me-1"></i>
+                            History
+                        </a>
+                    </div>
+
+                    <div class="btn-group w-100" role="group">
+                        <a href="/dashboard/theatres/{{ theatre.id }}/edit" class="btn btn-outline-warning btn-sm">
+                            <i class="bi bi-pencil me-1"></i>
+                            Edit
+                        </a>
+                        <button class="btn btn-outline-danger btn-sm"
+                                onclick="confirmDelete('{{ theatre.name }}', '{{ theatre.id }}')">
+                            <i class="bi bi-trash me-1"></i>
+                            Delete
+                        </button>
+                    </div>
+
+                    <form method="post" action="/dashboard/theatres/{{ theatre.id }}/toggle" class="d-inline w-100">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                            <i class="bi bi-toggle-{% if theatre.enabled %}on{% else %}off{% endif %} me-1"></i>
+                            {% if theatre.enabled %}Disable{% else %}Enable{% endif %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Summary Stats -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="bi bi-bar-chart me-2"></i>
+                    Theatre Statistics
+                </h6>
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="fs-4 fw-bold">{{ theatres|length }}</div>
+                        <small class="text-muted">Total Theatres</small>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="fs-4 fw-bold text-success">{{ theatres|selectattr('enabled')|list|length }}</div>
+                        <small class="text-muted">Active Theatres</small>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="fs-4 fw-bold text-primary">{{ theatres|map(attribute='show_count')|sum }}</div>
+                        <small class="text-muted">Total Shows</small>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="fs-4 fw-bold text-warning">{{ theatres|selectattr('last_status', 'equalto', 'success')|list|length }}</div>
+                        <small class="text-muted">Recently Successful</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(theatreName, theatreId) {
+    if (confirm(`Are you sure you want to delete "${theatreName}"?\n\nThis will also delete all associated shows and scraping history.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/dashboard/theatres/${theatreId}/delete`;
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Auto-refresh status every 30 seconds
+setInterval(function() {
+    // Could add auto-refresh logic here
+}, 30000);
+</script>
+{% endblock %}
