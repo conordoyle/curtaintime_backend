@@ -2,6 +2,7 @@
 Dashboard routes for theatre scraping system management.
 Provides web interface for monitoring and controlling the scraper.
 """
+import logging
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -11,9 +12,14 @@ import pytz
 import json
 import os
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 from .models.database import SessionLocal, Theatre, Show, ScrapeLog, ScheduledScrape, get_db
 from .scrapers.theatre_scraper import TheatreScraper
 from .tasks.scraping import scrape_single_theatre
+from .tasks.scheduling import _calculate_next_run
+from datetime import datetime
 
 router = APIRouter()
 
@@ -665,15 +671,30 @@ async def create_schedule(
     if schedule_preset.startswith('weekly') and schedule_preset != 'weekly-mon-2am' and schedule_preset != 'weekly-fri-6pm':
         schedule_config['day_of_week'] = day_of_week
 
+    # Convert EDT schedule config to UTC for storage
+    schedule_config_utc = schedule_config.copy()
+    if 'hour' in schedule_config_utc:
+        # Convert EDT hour to UTC hour (EDT is UTC-4)
+        edt_hour = schedule_config_utc['hour']
+        utc_hour = (edt_hour + 4) % 24
+        schedule_config_utc['hour'] = utc_hour
+        logger.info(f"Converting EDT {edt_hour}:{schedule_config_utc.get('minute', 0):02d} to UTC {utc_hour}:{schedule_config_utc.get('minute', 0):02d} for schedule storage")
+
     schedule = ScheduledScrape(
         theatre_id=theatre_id,
         enabled=enabled,
         schedule_type=schedule_type,
-        schedule_config=schedule_config
+        schedule_config=schedule_config_utc  # Store UTC config
     )
+
+    # Calculate and set the next_run time immediately
+    now = datetime.utcnow().replace(tzinfo=UTC)
+    schedule.next_run = _calculate_next_run(schedule, now)
 
     db.add(schedule)
     db.commit()
+
+    logger.info(f"Created scheduled scrape: theatre={theatre_id}, type={schedule_type}, config={schedule_config_utc}, next_run={schedule.next_run}, enabled={enabled}")
 
     return RedirectResponse(
         url="/dashboard/schedules?message=Schedule+created+successfully",
@@ -692,6 +713,8 @@ async def toggle_schedule(schedule_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     status = "enabled" if schedule.enabled else "disabled"
+    logger.info(f"Toggled scheduled scrape {schedule_id}: theatre={schedule.theatre_id}, now {status}")
+
     return RedirectResponse(
         url=f"/dashboard/schedules?message=Schedule+{status}",
         status_code=303
@@ -704,6 +727,8 @@ async def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
     schedule = db.query(ScheduledScrape).filter(ScheduledScrape.id == schedule_id).first()
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
+
+    logger.info(f"Deleted scheduled scrape {schedule_id}: theatre={schedule.theatre_id}")
 
     db.delete(schedule)
     db.commit()

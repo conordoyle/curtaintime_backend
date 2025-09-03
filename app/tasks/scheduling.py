@@ -20,12 +20,12 @@ def dispatch_scheduled_scrapes(self) -> Dict[str, Any]:
     Celery task to dispatch scheduled theatre scrapes.
     This task runs periodically and triggers scrapes for theatres that are due.
     """
-    logger.info("Starting dispatch_scheduled_scrapes task")
+    now = datetime.utcnow()
+    logger.info(f"Starting dispatch_scheduled_scrapes task at {now}")
 
     db = SessionLocal()
     try:
         # Get current time for comparison
-        now = datetime.utcnow()
 
         # Find all enabled scheduled scrapes that are due to run
         due_schedules = db.query(ScheduledScrape).filter(
@@ -34,7 +34,7 @@ def dispatch_scheduled_scrapes(self) -> Dict[str, Any]:
         ).all()
 
         if not due_schedules:
-            logger.info("No scheduled scrapes are currently due")
+            logger.info(f"No scheduled scrapes due at {now}. Next check in 30 minutes.")
             return {
                 "status": "completed",
                 "message": "No scheduled scrapes due",
@@ -42,7 +42,7 @@ def dispatch_scheduled_scrapes(self) -> Dict[str, Any]:
                 "checked_at": now.isoformat()
             }
 
-        logger.info(f"Found {len(due_schedules)} scheduled scrapes due to run")
+        logger.info(f"Found {len(due_schedules)} scheduled scrapes due to run: {[f'{s.theatre_id}@{s.next_run}' for s in due_schedules]}")
 
         # Dispatch scrapes for each due schedule
         dispatched_tasks = []
