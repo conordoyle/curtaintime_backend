@@ -20,7 +20,7 @@ from ..models.database import Show, SessionLocal
 logger = logging.getLogger(__name__)
 
 
-class ShowData(BaseException):
+class ShowData:
     """Structured data for a single show."""
     def __init__(self, title: str, start_datetime: datetime, description: Optional[str] = None,
                  image_url: Optional[str] = None, ticket_url: Optional[str] = None,
@@ -51,7 +51,42 @@ class GeminiParser:
             raise ValueError("GEMINI_API_KEY is required for GeminiParser")
 
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        # Configure safety settings to disable all content blocking
+        self.safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH", 
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_CIVIC_INTEGRITY",
+                "threshold": "BLOCK_NONE"
+            }
+        ]
+        
+        # Configure generation settings with high token limit
+        self.generation_config = {
+            "max_output_tokens": 65000,  # High limit for long JSON responses
+            "temperature": 0.1,         # Keep low for consistent parsing
+            "top_p": 0.95,
+            "response_mime_type": "application/json"  # Force JSON-only output
+        }
+        
+        # Primary and fallback models
+        self.primary_model = genai.GenerativeModel('gemini-2.5-flash')
+        self.fallback_model = genai.GenerativeModel('gemini-2.5-pro')
 
     def parse_theatre_markdown(self, markdown: str, theatre_name: str, scrape_log_id: Optional[int] = None) -> List[ShowData]:
         """
@@ -88,32 +123,80 @@ class GeminiParser:
                 if 'db' in locals():
                     db.close()
 
-        try:
-            logger.info(f"Sending {len(markdown)} chars of markdown to Gemini for {theatre_name}")
+        # Try primary model first, then fallback model
+        for attempt, (model, model_name) in enumerate([
+            (self.primary_model, "gemini-2.5-flash"),
+            (self.fallback_model, "gemini-2.5-pro")
+        ], 1):
+            try:
+                logger.info(f"Attempt {attempt}: Sending {len(markdown)} chars of markdown to {model_name} for {theatre_name}")
 
-            # Generate response from Gemini
-            response = self.model.generate_content(prompt)
+                # Generate response from Gemini with safety settings and generation config
+                response = model.generate_content(
+                    prompt,
+                    safety_settings=self.safety_settings,
+                    generation_config=self.generation_config
+                )
 
-            if not response or not response.text:
-                logger.error(f"No response from Gemini for {theatre_name}")
-                return []
+                if not response or not response.text:
+                    logger.warning(f"No response from {model_name} for {theatre_name}")
+                    if attempt == 1:  # Try fallback model
+                        continue
+                    return []
 
-            # Extract JSON from response
-            json_data = self._extract_json_from_response(response.text)
+                # Log response details for debugging
+                response_text = response.text
+                logger.info(f"Received response from {model_name}: {len(response_text)} characters")
+                logger.debug(f"Response first 500 chars: {response_text[:500]}")
+                logger.debug(f"Response last 500 chars: {response_text[-500:]}")
+                
+                # Check for potential truncation indicators
+                if response_text.rstrip().endswith(',') or (response_text.rstrip().endswith('}') and not response_text.rstrip().endswith(']')):
+                    logger.warning(f"Response from {model_name} may be truncated - unusual ending")
+                
+                # Log token usage if available
+                if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                    logger.info(f"Token usage for {model_name}: {response.usage_metadata}")
+                
+                # Check if response contains finish reason
+                if hasattr(response, 'candidates') and response.candidates:
+                    for i, candidate in enumerate(response.candidates):
+                        if hasattr(candidate, 'finish_reason'):
+                            logger.info(f"Candidate {i} finish_reason: {candidate.finish_reason}")
+                        if hasattr(candidate, 'safety_ratings'):
+                            logger.debug(f"Candidate {i} safety_ratings: {candidate.safety_ratings}")
 
-            if not json_data:
-                logger.error(f"Failed to extract JSON from Gemini response for {theatre_name}")
-                return []
+                # Extract JSON from response
+                json_data = self._extract_json_from_response(response_text)
 
-            # Parse the JSON data into ShowData objects
-            shows = self._parse_json_to_shows(json_data, theatre_name)
+                if not json_data:
+                    logger.warning(f"Failed to extract JSON from {model_name} response for {theatre_name}")
+                    if attempt == 1:  # Try fallback model
+                        continue
+                    return []
 
-            logger.info(f"Successfully parsed {len(shows)} shows from {theatre_name}")
-            return shows
+                # Log JSON extraction results
+                logger.info(f"Extracted JSON data: {len(json_data)} items from {model_name}")
+                if len(json_data) > 0:
+                    logger.debug(f"First extracted item: {json_data[0]}")
+                if len(json_data) > 1:
+                    logger.debug(f"Last extracted item: {json_data[-1]}")
 
-        except Exception as e:
-            logger.error(f"Error parsing markdown for {theatre_name}: {str(e)}")
-            return []
+                # Parse the JSON data into ShowData objects
+                shows = self._parse_json_to_shows(json_data, theatre_name)
+
+                logger.info(f"Successfully parsed {len(shows)} shows from {theatre_name} using {model_name}")
+                return shows
+
+            except Exception as e:
+                logger.warning(f"Error with {model_name} for {theatre_name}: {str(e)}")
+                if attempt == 1:  # Try fallback model
+                    continue
+                else:
+                    logger.error(f"Both models failed for {theatre_name}. Final error: {str(e)}")
+                    return []
+
+        return []
 
     def _create_parsing_prompt(self, markdown: str, theatre_name: str) -> str:
         """Create the prompt for Gemini to parse the theatre markdown."""
@@ -162,38 +245,29 @@ Markdown content:
     def _extract_json_from_response(self, response_text: str) -> Optional[List[Dict[str, Any]]]:
         """Extract JSON array from Gemini's response text."""
         try:
-            # First, try to parse the entire response as JSON
-            return json.loads(response_text.strip())
-        except json.JSONDecodeError:
-            pass
-
-        # Look for JSON array in the response
-        json_pattern = r'\[[\s\S]*?\]'
-        matches = re.findall(json_pattern, response_text)
-
-        for match in matches:
-            try:
-                return json.loads(match)
-            except json.JSONDecodeError:
-                continue
-
-        # Try to find JSON object if array not found
-        json_pattern = r'\{[\s\S]*?\}'
-        matches = re.findall(json_pattern, response_text)
-
-        for match in matches:
-            try:
-                data = json.loads(match)
-                # If it's a single object, wrap it in a list
-                if isinstance(data, dict):
-                    return [data]
-                elif isinstance(data, list):
-                    return data
-            except json.JSONDecodeError:
-                continue
-
-        logger.error(f"Could not extract valid JSON from response: {response_text[:200]}...")
-        return None
+            # With response_mime_type="application/json", the response should be pure JSON
+            data = json.loads(response_text.strip())
+            
+            logger.debug(f"Parsed JSON data type: {type(data)}")
+            
+            # If it's a single object, wrap it in a list
+            if isinstance(data, dict):
+                logger.debug("Converting single JSON object to list")
+                return [data]
+            elif isinstance(data, list):
+                logger.debug(f"JSON is already a list with {len(data)} items")
+                return data
+            else:
+                logger.error(f"Unexpected JSON data type: {type(data)}, value: {data}")
+                return None
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {str(e)}")
+            logger.error(f"JSON parse error at line {e.lineno}, column {e.colno}")
+            logger.error(f"Response text length: {len(response_text)}")
+            logger.error(f"Response first 1000 chars: {response_text[:1000]}")
+            logger.error(f"Response last 1000 chars: {response_text[-1000:]}")
+            return None
 
     def _parse_json_to_shows(self, json_data: List[Dict[str, Any]], theatre_name: str) -> List[ShowData]:
         """Parse JSON data into ShowData objects."""

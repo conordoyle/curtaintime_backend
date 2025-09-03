@@ -150,38 +150,42 @@
                         </td>
                         <td>
                             {% if schedule.schedule_type == "daily" %}
-                                {% if schedule.schedule_config.hour == 2 and schedule.schedule_config.minute == 0 %}
-                                    <span class="badge bg-info schedule-badge">Daily at 2:00 AM</span>
-                                {% elif schedule.schedule_config.hour == 6 and schedule.schedule_config.minute == 0 %}
-                                    <span class="badge bg-info schedule-badge">Daily at 6:00 AM</span>
-                                {% elif schedule.schedule_config.hour == 12 and schedule.schedule_config.minute == 0 %}
-                                    <span class="badge bg-info schedule-badge">Daily at 12:00 PM</span>
-                                {% elif schedule.schedule_config.hour == 18 and schedule.schedule_config.minute == 0 %}
-                                    <span class="badge bg-info schedule-badge">Daily at 6:00 PM</span>
+                                {% set est_hour = (schedule.schedule_config.hour - 4) % 24 %}
+                                {% if schedule.schedule_config.hour == 6 and schedule.schedule_config.minute == 0 %}
+                                    <span class="badge bg-info schedule-badge">Daily at 2:00 AM EST</span>
+                                {% elif schedule.schedule_config.hour == 10 and schedule.schedule_config.minute == 0 %}
+                                    <span class="badge bg-info schedule-badge">Daily at 6:00 AM EST</span>
+                                {% elif schedule.schedule_config.hour == 16 and schedule.schedule_config.minute == 0 %}
+                                    <span class="badge bg-info schedule-badge">Daily at 12:00 PM EST</span>
                                 {% elif schedule.schedule_config.hour == 22 and schedule.schedule_config.minute == 0 %}
-                                    <span class="badge bg-info schedule-badge">Daily at 10:00 PM</span>
+                                    <span class="badge bg-info schedule-badge">Daily at 6:00 PM EST</span>
+                                {% elif schedule.schedule_config.hour == 2 and schedule.schedule_config.minute == 0 %}
+                                    <span class="badge bg-info schedule-badge">Daily at 10:00 PM EST</span>
                                 {% else %}
                                     <span class="badge bg-info schedule-badge">Daily Custom</span>
-                                    <div class="schedule-description">{{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
+                                    <div class="schedule-description">{{ "%02d"|format(est_hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
                                 {% endif %}
                             {% elif schedule.schedule_type == "weekly" %}
-                                {% if schedule.schedule_config.hour == 2 and schedule.schedule_config.minute == 0 and schedule.schedule_config.day_of_week == 0 %}
-                                    <span class="badge bg-info schedule-badge">Weekly (Monday) at 2:00 AM</span>
-                                {% elif schedule.schedule_config.hour == 18 and schedule.schedule_config.minute == 0 and schedule.schedule_config.day_of_week == 4 %}
-                                    <span class="badge bg-info schedule-badge">Weekly (Friday) at 6:00 PM</span>
+                                {% set est_hour = (schedule.schedule_config.hour - 4) % 24 %}
+                                {% if schedule.schedule_config.hour == 6 and schedule.schedule_config.minute == 0 and schedule.schedule_config.day_of_week == 0 %}
+                                    <span class="badge bg-info schedule-badge">Weekly (Monday) at 2:00 AM EST</span>
+                                {% elif schedule.schedule_config.hour == 22 and schedule.schedule_config.minute == 0 and schedule.schedule_config.day_of_week == 4 %}
+                                    <span class="badge bg-info schedule-badge">Weekly (Friday) at 6:00 PM EST</span>
                                 {% else %}
                                     <span class="badge bg-info schedule-badge">Weekly Custom</span>
-                                    <div class="schedule-description">{{ ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][schedule.schedule_config.day_of_week] }} {{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
+                                    <div class="schedule-description">{{ ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][schedule.schedule_config.day_of_week] }} {{ "%02d"|format(est_hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
                                 {% endif %}
                             {% elif schedule.schedule_type == "hourly" %}
                                 <span class="badge bg-info schedule-badge">Every Hour</span>
                                 <div class="schedule-description">At minute {{ schedule.schedule_config.minute }}</div>
                             {% elif schedule.schedule_type == "every-4-hours" %}
+                                {% set est_hour = (schedule.schedule_config.hour - 4) % 24 %}
                                 <span class="badge bg-info schedule-badge">Every 4 Hours</span>
-                                <div class="schedule-description">At {{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
+                                <div class="schedule-description">At {{ "%02d"|format(est_hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
                             {% elif schedule.schedule_type == "every-12-hours" %}
+                                {% set est_hour = (schedule.schedule_config.hour - 4) % 24 %}
                                 <span class="badge bg-info schedule-badge">Every 12 Hours</span>
-                                <div class="schedule-description">At {{ "%02d"|format(schedule.schedule_config.hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
+                                <div class="schedule-description">At {{ "%02d"|format(est_hour) }}:{{ "%02d"|format(schedule.schedule_config.minute) }} EST</div>
                             {% else %}
                                 <span class="badge bg-secondary schedule-badge">{{ schedule.schedule_type.title() }}</span>
                             {% endif %}
