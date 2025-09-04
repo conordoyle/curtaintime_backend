@@ -92,8 +92,8 @@ class ScrapeLog(Base):
     shows_updated = Column(Integer, default=0)
     error_message = Column(Text, nullable=True)
     raw_markdown = Column(Text, nullable=True)  # Store the raw markdown content
-    gemini_prompt = Column(Text, nullable=True)  # Store the Gemini AI prompt used
-    parsed_json = Column(JSON, nullable=True)  # Store the Gemini AI JSON response
+    openai_prompt = Column(Text, nullable=True)  # Store the OpenAI prompt used
+    parsed_json = Column(JSON, nullable=True)  # Store the OpenAI JSON response
     scrape_metadata = Column(JSON, nullable=True)  # Store additional metadata
 
     # Change tracking fields

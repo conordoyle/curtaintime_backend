@@ -17,7 +17,7 @@ pytz>=2023.3
 
 # API integrations
 firecrawl-py>=0.0.16
-google-generativeai>=0.3.0
+openai>=1.0.0
 
 # Data processing and utilities
 pydantic>=2.5.0

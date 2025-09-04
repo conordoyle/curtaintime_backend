@@ -40,21 +40,20 @@ def test_firecrawl_direct():
         return False
 
 
-def test_gemini_direct():
-    """Test Gemini AI parsing directly."""
-    print("\n🤖 Testing Gemini AI Parsing...")
+def test_openai_direct():
+    """Test OpenAI parsing directly."""
+    print("\n🤖 Testing OpenAI Parsing...")
 
     try:
-        import google.generativeai as genai
+        from openai import OpenAI
 
-        api_key = os.getenv('GEMINI_API_KEY')
+        api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
-            print("⚠️  GEMINI_API_KEY not set")
-            print("   Set it to test parsing: export GEMINI_API_KEY=your-key")
+            print("⚠️  OPENAI_API_KEY not set")
+            print("   Set it to test parsing: export OPENAI_API_KEY=your-key")
             return False
 
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        client = OpenAI(api_key=api_key)
 
         # Test prompt
         prompt = """
@@ -68,24 +67,32 @@ Description: The revolutionary musical
 Return only valid JSON with fields: title, date, time, description
 """
 
-        print("   Sending test prompt to Gemini...")
+        print("   Sending test prompt to OpenAI...")
 
-        response = model.generate_content(prompt)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,
+            max_tokens=1000,
+            response_format={"type": "json_object"}
+        )
 
-        if response and response.text:
-            print("✅ Gemini AI works!")
-            print(f"   Response: {response.text[:100]}...")
+        if response and response.choices:
+            print("✅ OpenAI works!")
+            print(f"   Response: {response.choices[0].message.content[:100]}...")
             return True
         else:
-            print("❌ Gemini returned no response")
+            print("❌ OpenAI returned no response")
             return False
 
     except ImportError:
-        print("❌ google-generativeai not installed")
-        print("   Install with: pip install google-generativeai")
+        print("❌ openai not installed")
+        print("   Install with: pip install openai")
         return False
     except Exception as e:
-        print(f"❌ Gemini test failed: {e}")
+        print(f"❌ OpenAI test failed: {e}")
         return False
 
 
@@ -121,7 +128,7 @@ def main():
     print("\n🔧 Environment Setup:")
     print("   To test fully, set these environment variables:")
     print("   export FIRECRAWL_API_KEY=your-firecrawl-key")
-    print("   export GEMINI_API_KEY=your-gemini-key")
+    print("   export OPENAI_API_KEY=your-openai-key")
     print("   export DATABASE_URL=postgresql://...  # Optional for full system")
 
     # Test dependencies first
@@ -135,7 +142,7 @@ def main():
     # Test core functionality
     tests = [
         ("Firecrawl Scraping", test_firecrawl_direct),
-        ("Gemini AI Parsing", test_gemini_direct),
+        ("OpenAI Parsing", test_openai_direct),
     ]
 
     results = []
@@ -166,7 +173,7 @@ def main():
         print("   python -c \"from app.scrapers.theatre_scraper import TheatreScraper; print('Scraper ready!')\"")
         print("   ")
         print("   # Test AI parsing:")
-        print("   python -c \"from app.parsers.gemini_parser import GeminiParser; print('Parser ready!')\"")
+        print("   python -c \"from app.parsers.openai_parser import OpenAIParser; print('Parser ready!')\"")
     elif passed == 1:
         print("\n⚠️  Partial success - check API keys for failed tests")
     else:

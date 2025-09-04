@@ -53,8 +53,8 @@ class OpenAIParser:
         self.client = OpenAI(api_key=api_key)
 
         # Primary and fallback models
-        self.primary_model = "gpt-4o-mini"
-        self.fallback_model = "gpt-4o"
+        self.primary_model = "gpt-5-mini"
+        self.fallback_model = "gpt-5"
 
     def parse_theatre_markdown(self, markdown: str, theatre_name: str, scrape_log_id: Optional[int] = None) -> List[ShowData]:
         """
@@ -93,8 +93,8 @@ class OpenAIParser:
 
         # Try primary model first, then fallback model
         for attempt, (model_name, model_display) in enumerate([
-            (self.primary_model, "gpt-4o-mini"),
-            (self.fallback_model, "gpt-4o")
+            (self.primary_model, "gpt-5-mini"),
+            (self.fallback_model, "gpt-5")
         ], 1):
             try:
                 logger.info(f"Attempt {attempt}: Sending {len(markdown)} chars of markdown to {model_display} for {theatre_name}")
@@ -106,7 +106,7 @@ class OpenAIParser:
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.1,
-                    max_tokens=65000,
+                    max_tokens=128000,
                     response_format={"type": "json_object"}
                 )
 

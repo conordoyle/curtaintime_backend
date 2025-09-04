@@ -48,23 +48,23 @@ def test_firecrawl_scraping():
         return False
 
 
-def test_gemini_parsing():
-    """Test Gemini AI parsing functionality."""
-    print("\n🤖 Testing Gemini AI Parsing...")
+def test_openai_parsing():
+    """Test OpenAI parsing functionality."""
+    print("\n🤖 Testing OpenAI Parsing...")
 
     try:
         # Import the parser
-        from app.parsers.gemini_parser import GeminiParser
+        from app.parsers.openai_parser import OpenAIParser
 
         # Check if API key is available
-        api_key = os.getenv('GEMINI_API_KEY')
+        api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
-            print("⚠️  GEMINI_API_KEY not found in environment")
+            print("⚠️  OPENAI_API_KEY not found in environment")
             print("   Skipping Gemini test - set API key to test parsing")
             return False
 
         # Create parser instance
-        parser = GeminiParser(api_key)
+        parser = OpenAIParser(api_key)
 
         # Test with sample markdown
         sample_markdown = """
@@ -154,7 +154,7 @@ def main():
     tests = [
         ("Configuration Loading", test_config_loading),
         ("Firecrawl Scraping", test_firecrawl_scraping),
-        ("Gemini AI Parsing", test_gemini_parsing),
+        ("OpenAI Parsing", test_openai_parsing),
     ]
 
     results = []

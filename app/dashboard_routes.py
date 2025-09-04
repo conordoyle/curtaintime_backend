@@ -133,7 +133,7 @@ async def trigger_theatre_scrape(theatre_id: str, db: Session = Depends(get_db))
         else:
             # Do synchronous scraping
             from .scrapers.theatre_scraper import TheatreScraper
-            from .parsers.gemini_parser import GeminiParser
+            from .parsers.openai_parser import OpenAIParser
             from .models.database import ScrapeLog
             import json
 
@@ -143,7 +143,7 @@ async def trigger_theatre_scrape(theatre_id: str, db: Session = Depends(get_db))
                 raise Exception("FIRECRAWL_API_KEY not found in environment variables")
 
             scraper = TheatreScraper(firecrawl_api_key=firecrawl_key)
-            parser = GeminiParser()
+            parser = OpenAIParser()
 
             # Create scrape log
             scrape_log = ScrapeLog(
@@ -760,12 +760,12 @@ async def run_all_scheduled_scrapes(db: Session = Depends(get_db)):
             else:
                 # Fallback to synchronous scraping
                 from .scrapers.theatre_scraper import TheatreScraper
-                from .parsers.gemini_parser import GeminiParser
+                from .parsers.openai_parser import OpenAIParser
 
                 firecrawl_key = os.getenv('FIRECRAWL_API_KEY')
                 if firecrawl_key:
                     scraper = TheatreScraper(firecrawl_api_key=firecrawl_key)
-                    parser = GeminiParser()
+                    parser = OpenAIParser()
 
                     result = scraper.scrape_with_config(schedule.theatre, schedule.theatre.config_data or {})
                     if result:
@@ -791,9 +791,9 @@ async def get_raw_markdown(log_id: int, db: Session = Depends(get_db)):
     return {"raw_markdown": log.raw_markdown}
 
 
-@router.get("/api/scrape-logs/{log_id}/gemini-response")
-async def get_gemini_response(log_id: int, db: Session = Depends(get_db)):
-    """Get Gemini AI JSON response for a scrape log."""
+@router.get("/api/scrape-logs/{log_id}/openai-response")
+async def get_openai_response(log_id: int, db: Session = Depends(get_db)):
+    """Get OpenAI JSON response for a scrape log."""
     log = db.query(ScrapeLog).filter(ScrapeLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Scrape log not found")
@@ -801,14 +801,14 @@ async def get_gemini_response(log_id: int, db: Session = Depends(get_db)):
     return {"parsed_json": log.parsed_json}
 
 
-@router.get("/api/scrape-logs/{log_id}/gemini-prompt")
-async def get_gemini_prompt(log_id: int, db: Session = Depends(get_db)):
-    """Get Gemini AI prompt used for a scrape log."""
+@router.get("/api/scrape-logs/{log_id}/openai-prompt")
+async def get_openai_prompt(log_id: int, db: Session = Depends(get_db)):
+    """Get OpenAI prompt used for a scrape log."""
     log = db.query(ScrapeLog).filter(ScrapeLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Scrape log not found")
 
-    return {"gemini_prompt": log.gemini_prompt}
+    return {"openai_prompt": log.openai_prompt}
 
 
 # Scraping History

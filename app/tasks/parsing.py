@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..celery_app import celery_app
 from ..models.database import SessionLocal, Show, ScrapeLog, Theatre
-from ..parsers.gemini_parser import GeminiParser, ShowData
+from ..parsers.openai_parser import OpenAIParser, ShowData
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ def parse_theatre_shows(self, scrape_log_id: int, markdown: str, theatre_name: s
             }
 
         # Initialize parser and parse content
-        parser = GeminiParser.from_env()
+        parser = OpenAIParser.from_env()
         raw_shows = parser.parse_theatre_markdown(markdown, theatre_name, scrape_log_id)
 
         # Validate parsed data
@@ -74,10 +74,10 @@ def parse_theatre_shows(self, scrape_log_id: int, markdown: str, theatre_name: s
 
         logger.info(f"Parsed {len(valid_shows)} valid shows from {len(raw_shows)} raw items")
 
-        # Store the Gemini JSON response for debugging/logging
-        gemini_response = []
+        # Store the OpenAI JSON response for debugging/logging
+        openai_response = []
         for show in raw_shows:
-            gemini_response.append({
+            openai_response.append({
                 "title": show.title,
                 "start_datetime": show.start_datetime.isoformat() if show.start_datetime else None,
                 "description": show.description,
@@ -86,7 +86,7 @@ def parse_theatre_shows(self, scrape_log_id: int, markdown: str, theatre_name: s
                 "raw_data": show.raw_data
             })
 
-        scrape_log.parsed_json = gemini_response
+        scrape_log.parsed_json = openai_response
 
         # Replace all shows for this theatre with newly parsed data
         try:

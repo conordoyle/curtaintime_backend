@@ -188,15 +188,15 @@
                                         <i class="bi bi-file-earmark-text"></i>
                                     </button>
                                 {% endif %}
-                                {% if log.gemini_prompt %}
+                                {% if log.openai_prompt %}
                                     <button class="btn btn-sm btn-outline-primary"
-                                            onclick="showGeminiPrompt({{ log.id }}, '{{ theatre_dict[log.theatre_id].name }}')">
+                                            onclick="showOpenAIPrompt({{ log.id }}, '{{ theatre_dict[log.theatre_id].name }}')">
                                         <i class="bi bi-chat-dots"></i>
                                     </button>
                                 {% endif %}
                                 {% if log.parsed_json %}
                                     <button class="btn btn-sm btn-outline-success"
-                                            onclick="showGeminiResponse({{ log.id }}, '{{ theatre_dict[log.theatre_id].name }}')">
+                                            onclick="showOpenAIResponse({{ log.id }}, '{{ theatre_dict[log.theatre_id].name }}')">
                                         <i class="bi bi-braces"></i>
                                     </button>
                                 {% endif %}
@@ -310,50 +310,50 @@ async function showRawMarkdown(logId, theatreName) {
     modal.show();
 }
 
-// Function to show Gemini prompt modal
-async function showGeminiPrompt(logId, theatreName) {
+// Function to show OpenAI prompt modal
+async function showOpenAIPrompt(logId, theatreName) {
     document.getElementById('promptTheatreName').textContent = theatreName;
     document.getElementById('promptLogId').textContent = logId;
 
     try {
-        // Fetch the Gemini prompt
-        const response = await fetch(`/dashboard/api/scrape-logs/${logId}/gemini-prompt`);
+        // Fetch the OpenAI prompt
+        const response = await fetch(`/dashboard/api/scrape-logs/${logId}/openai-prompt`);
         if (response.ok) {
             const data = await response.json();
-            document.getElementById('geminiPromptContent').textContent = data.gemini_prompt || 'No prompt data available';
+            document.getElementById('openaiPromptContent').textContent = data.openai_prompt || 'No prompt data available';
         } else {
-            document.getElementById('geminiPromptContent').textContent = 'No prompt data available';
+            document.getElementById('openaiPromptContent').textContent = 'No prompt data available';
         }
     } catch (error) {
-        document.getElementById('geminiPromptContent').textContent = 'Error: ' + error.message;
+        document.getElementById('openaiPromptContent').textContent = 'Error: ' + error.message;
     }
 
     // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('geminiPromptModal'));
+    const modal = new bootstrap.Modal(document.getElementById('openaiPromptModal'));
     modal.show();
 }
 
-// Function to show Gemini response modal
-async function showGeminiResponse(logId, theatreName) {
+// Function to show OpenAI response modal
+async function showOpenAIResponse(logId, theatreName) {
     document.getElementById('jsonTheatreName').textContent = theatreName;
     document.getElementById('jsonLogId').textContent = logId;
 
     try {
-        // Fetch the Gemini JSON response
-        const response = await fetch(`/dashboard/api/scrape-logs/${logId}/gemini-response`);
+        // Fetch the OpenAI JSON response
+        const response = await fetch(`/dashboard/api/scrape-logs/${logId}/openai-response`);
         if (response.ok) {
             const data = await response.json();
             const formattedJson = JSON.stringify(data.parsed_json, null, 2);
-            document.getElementById('geminiResponseContent').textContent = formattedJson;
+            document.getElementById('openaiResponseContent').textContent = formattedJson;
         } else {
-            document.getElementById('geminiResponseContent').textContent = 'No JSON data available';
+            document.getElementById('openaiResponseContent').textContent = 'No JSON data available';
         }
     } catch (error) {
-        document.getElementById('geminiResponseContent').textContent = 'Error: ' + error.message;
+        document.getElementById('openaiResponseContent').textContent = 'Error: ' + error.message;
     }
 
     // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('geminiResponseModal'));
+    const modal = new bootstrap.Modal(document.getElementById('openaiResponseModal'));
     modal.show();
 }
 
@@ -383,13 +383,13 @@ function copyToClipboard(elementId) {
 
 // Function to download JSON
 function downloadJson() {
-    const jsonText = document.getElementById('geminiResponseContent').textContent;
+    const jsonText = document.getElementById('openaiResponseContent').textContent;
     const blob = new Blob([jsonText], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gemini-response-${document.getElementById('jsonLogId').textContent}.json`;
+    a.download = `openai-response-${document.getElementById('jsonLogId').textContent}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -433,14 +433,14 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
-<!-- Gemini Prompt Modal -->
-<div class="modal fade" id="geminiPromptModal" tabindex="-1">
+<!-- OpenAI Prompt Modal -->
+<div class="modal fade" id="openaiPromptModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bi bi-chat-dots me-2"></i>
-                    Gemini AI Prompt - <span id="promptTheatreName"></span>
+                    OpenAI Prompt - <span id="promptTheatreName"></span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -448,10 +448,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="mb-3">
                     <label class="form-label">Scrape Log ID: <span id="promptLogId"></span></label>
                 </div>
-                <pre id="geminiPromptContent" class="bg-light p-3 rounded" style="max-height: 60vh; overflow-y: auto; font-size: 0.875rem; white-space: pre-wrap;"></pre>
+                <pre id="openaiPromptContent" class="bg-light p-3 rounded" style="max-height: 60vh; overflow-y: auto; font-size: 0.875rem; white-space: pre-wrap;"></pre>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('geminiPromptContent')">
+                <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('openaiPromptContent')">
                     <i class="bi bi-clipboard me-1"></i>
                     Copy
                 </button>
@@ -461,14 +461,14 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
-<!-- Gemini Response Modal -->
-<div class="modal fade" id="geminiResponseModal" tabindex="-1">
+<!-- OpenAI Response Modal -->
+<div class="modal fade" id="openaiResponseModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bi bi-braces me-2"></i>
-                    Gemini AI Response - <span id="jsonTheatreName"></span>
+                    OpenAI Response - <span id="jsonTheatreName"></span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -476,10 +476,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="mb-3">
                     <label class="form-label">Scrape Log ID: <span id="jsonLogId"></span></label>
                 </div>
-                <pre id="geminiResponseContent" class="bg-light p-3 rounded" style="max-height: 60vh; overflow-y: auto; font-size: 0.875rem;"></pre>
+                <pre id="openaiResponseContent" class="bg-light p-3 rounded" style="max-height: 60vh; overflow-y: auto; font-size: 0.875rem;"></pre>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('geminiResponseContent')">
+                <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('openaiResponseContent')">
                     <i class="bi bi-clipboard me-1"></i>
                     Copy
                 </button>

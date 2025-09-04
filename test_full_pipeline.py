@@ -51,7 +51,7 @@ def test_ai_parsing_pipeline():
     print("\n🧠 Testing AI Parsing Pipeline...")
 
     try:
-        from app.parsers.gemini_parser import GeminiParser
+        from app.parsers.openai_parser import OpenAIParser
 
         # Sample markdown for testing
         sample_markdown = """
@@ -68,7 +68,7 @@ Time: 7:30 PM
 Description: The untold story of the Witches of Oz
 """
 
-        parser = GeminiParser.from_env()
+        parser = OpenAIParser.from_env()
         shows = parser.parse_theatre_markdown(sample_markdown, "Test Theatre")
 
         if shows and len(shows) > 0:
